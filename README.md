@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🥔 Leafcheck
+#  Leafcheck
 
 ### Potato leaf disease detection with a Vision Transformer
 
