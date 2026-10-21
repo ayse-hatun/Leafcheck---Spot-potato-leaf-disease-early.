@@ -21,10 +21,10 @@ Leafcheck is an end-to-end deep learning project. A pretrained **Vision Transfor
 
 Farmers and students can drag in a leaf photo, watch the scan run, and see how confident the model is about each possible condition.
 
-<!-- Add a screenshot of the app here:
+
+
 <img width="1587" height="828" alt="image" src="https://github.com/user-attachments/assets/6fcaf3f7-50f5-49b9-a69b-ed5a01aed277" />
-<p align="center"><img src="<img width="1546" height="855" alt="image" src="https://github.com/user-attachments/assets/7151c70b-f44b-4062-b6db-5c727492d9d8" />
-" width="800" alt="Leafcheck interface"></p>
+
 -->
 
 
