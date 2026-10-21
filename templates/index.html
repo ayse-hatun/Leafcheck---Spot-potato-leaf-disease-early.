@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leafcheck · Crop leaf disease detector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #eef2ec;
+    --surface: #f8faf7;
+    --ink: #16221a;
+    --muted: #5a6a60;
+    --line: #d6dfd7;
+    --accent: #2f7d4f;
+    --accent-soft: #d0e3d6;
+    --danger: #b4572f;
+    --box: #0f1a14;
+    --box-line: #2b3d31;
+    --box-text: #cfdcd2;
+    --tomato: #c4513a;
+    --potato: #a67c48;
+    --spinach: #2f7d4f;
+    --serif: "Instrument Serif", Georgia, "Times New Roman", serif;
+    --sans: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: var(--sans); font-size: 16px; line-height: 1.55;
+    min-height: 100vh; display: flex; flex-direction: column;
+  }
+  .wrap { width: 100%; max-width: 1160px; margin: 0 auto; padding: 0 28px; }
+
+  header { padding: 28px 0 0; }
+  .brand { display: flex; align-items: center; gap: 10px; font-family: var(--serif); font-size: 26px; letter-spacing: .01em; }
+  .brand svg { width: 26px; height: 26px; }
+
+  main { flex: 1; padding: 56px 0 72px; }
+  .grid { display: grid; grid-template-columns: 1fr; gap: 44px; align-items: start; }
+  @media (min-width: 940px) { .grid { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 72px; } }
+
+  h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(44px, 6vw, 72px); line-height: 1.02; letter-spacing: -.01em; margin: 0 0 20px; }
+  .lede { color: var(--muted); font-size: 18px; max-width: 46ch; margin: 0 0 44px; }
+
+  /* ---------- Result ---------- */
+  .result { border-top: 1px solid var(--line); padding-top: 28px; min-height: 270px; }
+  .result h2 { font-size: 15px; font-weight: 600; margin: 0 0 16px; color: var(--muted); }
+  .empty { color: var(--muted); max-width: 42ch; margin: 0 0 10px; }
+  .tip { font-size: 14px; color: var(--muted); margin: 0; max-width: 42ch; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; padding: 5px 12px 5px 10px; border-radius: 99px; margin-bottom: 14px; }
+  .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .pill.ok { color: var(--accent); background: #dcebe0; }
+  .pill.bad { color: var(--danger); background: #f3e1d8; }
+  .finding { font-family: var(--serif); font-size: clamp(40px, 5vw, 58px); line-height: 1.05; margin: 0; }
+  .conf { margin: 6px 0 26px; color: var(--muted); }
+  .conf strong { color: var(--ink); font-weight: 600; }
+  .bars { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+  .bar-head { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px; }
+  .bar-head span:last-child { font-variant-numeric: tabular-nums; color: var(--muted); }
+  .track { height: 8px; background: var(--accent-soft); border-radius: 99px; overflow: hidden; }
+  .fill { height: 100%; width: 0; background: #a9bcae; border-radius: 99px; transition: width .9s cubic-bezier(.2,.7,.2,1); }
+  .top .fill { background: var(--accent); }
+  .bars.is-bad .top .fill { background: var(--danger); }
+  .top .bar-head span:first-child { font-weight: 600; }
+  .error { color: var(--danger); font-weight: 500; margin: 0; }
+  .note { font-size: 13px; color: var(--muted); margin: 26px 0 0; max-width: 52ch; }
+
+  /* ---------- Crop picker ---------- */
+  fieldset { border: 0; margin: 0 0 16px; padding: 0; min-width: 0; }
+  legend { font-size: 15px; font-weight: 600; color: var(--muted); padding: 0; margin-bottom: 12px; }
+  .crops { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .crop { position: relative; }
+  .crop input { position: absolute; opacity: 0; inset: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; z-index: 2; }
+  .crop .card {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    padding: 18px 8px 14px; background: var(--surface);
+    border: 1.5px solid var(--line); border-radius: 16px;
+    transition: border-color .18s, box-shadow .18s, background .18s;
+  }
+  .crop:hover input:not(:disabled) + .card { border-color: #9dbba8; }
+  .icon { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; }
+  .icon svg { width: 32px; height: 32px; }
+  .t-tomato .icon { color: var(--tomato); background: #f3dcd5; }
+  .t-potato .icon { color: var(--potato); background: #efe3d1; }
+  .t-spinach .icon { color: var(--spinach); background: #d4e6da; }
+  .name { font-weight: 600; font-size: 15px; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: -6px; }
+  .tick { position: absolute; top: 9px; right: 9px; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--line); background: #fff; display: grid; place-items: center; transition: all .18s; }
+  .tick svg { width: 11px; height: 11px; stroke: #fff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; opacity: 0; transform: scale(.6); transition: all .18s; }
+  .crop input:checked + .card { border-color: var(--accent); background: #fff; box-shadow: 0 0 0 4px rgba(47, 125, 79, .13); }
+  .crop input:checked + .card .tick { background: var(--accent); border-color: var(--accent); }
+  .crop input:checked + .card .tick svg { opacity: 1; transform: scale(1); }
+  .crop input:focus-visible + .card { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .crop input:disabled { cursor: not-allowed; }
+  .crop input:disabled + .card { opacity: .5; background: transparent; }
+
+  /* ---------- Light box ---------- */
+  .lightbox { background: var(--box); border-radius: 22px; padding: 14px; box-shadow: 0 30px 60px -30px rgba(15, 26, 20, .55); }
+  .stage { position: relative; aspect-ratio: 1 / 1; border-radius: 12px; overflow: hidden; background: radial-gradient(circle at 50% 40%, #18271e 0%, var(--box) 70%); }
+  .drop {
+    position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; gap: 6px; color: var(--box-text);
+    border: 1.5px dashed var(--box-line); border-radius: 12px; cursor: pointer; padding: 24px;
+    transition: border-color .2s, background .2s;
+  }
+  .drop:hover, .drop.over { border-color: #6fbf8a; background: rgba(111, 191, 138, .07); }
+  .drop svg { width: 44px; height: 44px; margin-bottom: 10px; stroke: #6fbf8a; }
+  .drop .big { font-size: 19px; font-weight: 500; color: #fff; }
+  .drop .small { font-size: 14px; color: #94a89a; }
+  .drop u { text-decoration-color: #6fbf8a; text-underline-offset: 3px; }
+  input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+  .preview { position: absolute; inset: 0; display: none; }
+  .preview img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .stage.has-image .drop { display: none; }
+  .stage.has-image .preview { display: block; }
+
+  .scan {
+    position: absolute; left: 0; right: 0; top: 0; height: 90px;
+    background: linear-gradient(to bottom, rgba(111,191,138,0) 0%, rgba(111,191,138,.38) 92%, rgba(181,239,200,.95) 100%);
+    transform: translateY(-100%); opacity: 0; pointer-events: none;
+  }
+  .stage.analyzing .scan { opacity: 1; animation: sweep 1.9s cubic-bezier(.5,0,.5,1) infinite; }
+  .stage.analyzing img { filter: brightness(.85) contrast(1.05); }
+  @keyframes sweep { from { transform: translateY(-100%); } to { transform: translateY(var(--h, 560px)); } }
+
+  .controls { display: flex; gap: 10px; padding: 14px 6px 6px; align-items: center; }
+  .filename { flex: 1; min-width: 0; color: #94a89a; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  button { font: inherit; font-weight: 600; font-size: 15px; border-radius: 10px; padding: 11px 20px; cursor: pointer; border: 1px solid transparent; transition: background .15s, opacity .15s; }
+  .primary { background: #e8f5ec; color: var(--box); }
+  .primary:hover:not(:disabled) { background: #fff; }
+  .primary:disabled { opacity: .35; cursor: not-allowed; }
+  .ghost { background: transparent; color: var(--box-text); border-color: var(--box-line); }
+  .ghost:hover:not(:disabled) { border-color: #6fbf8a; }
+  .ghost:disabled { opacity: .35; cursor: not-allowed; }
+  button:focus-visible, .drop:focus-visible { outline: 2px solid #a5e0b8; outline-offset: 3px; }
+
+  footer { border-top: 1px solid var(--line); padding: 22px 0 30px; font-size: 13px; color: var(--muted); }
+  footer p { margin: 0; max-width: 90ch; }
+
+  @media (max-width: 520px) {
+    .wrap { padding: 0 18px; }
+    main { padding-top: 36px; }
+    .crops { gap: 8px; }
+    .crop .card { padding: 16px 4px 12px; }
+    .icon { width: 48px; height: 48px; }
+    .icon svg { width: 28px; height: 28px; }
+    .tick { top: 6px; right: 6px; width: 18px; height: 18px; }
+    .controls { flex-wrap: wrap; }
+    .filename { flex-basis: 100%; }
+    .controls button { flex: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .stage.analyzing .scan { animation: none; opacity: .5; transform: translateY(120px); }
+    .fill, .tick, .tick svg { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" fill="none" stroke="#2f7d4f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 26C6 14 14 6 27 5c1 13-6 21-19 21z"/><path d="M6 26 20 12"/></svg>
+      Leafcheck
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap grid">
+
+    <section aria-labelledby="title">
+      <h1 id="title">Spot potato leaf disease early.</h1>
+      <p class="lede" id="lede"></p>
+
+      <div class="result" aria-live="polite">
+        <h2>Result</h2>
+        <div id="result-body"></div>
+      </div>
+    </section>
+
+    <section aria-label="Crop and leaf photo">
+      <fieldset>
+        <legend>Which crop is the leaf from?</legend>
+        <div class="crops">
+
+          <label class="crop t-tomato">
+            <input type="radio" name="crop" value="tomato">
+            <span class="card">
+              <span class="tick"><svg viewBox="0 0 12 12"><path d="M2.5 6.5 5 9l4.5-5.5"/></svg></span>
+              <span class="icon">
+                <svg viewBox="0 0 48 48" fill="currentColor" fill-opacity=".14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M24 14c-10 0-17 6-17 14 0 8 7 13 17 13s17-5 17-13c0-8-7-14-17-14z"/>
+                  <path d="M24 17c-2 3-5 4-9 4 3 1 4 3 6 4M24 17c2 3 5 4 9 4-3 1-4 3-6 4M24 17V9" fill="none"/>
+                </svg>
+              </span>
+              <span class="name">Tomato</span>
+              <span class="hint" hidden>Not installed</span>
+            </span>
+          </label>
+
+          <label class="crop t-potato">
+            <input type="radio" name="crop" value="potato" checked>
+            <span class="card">
+              <span class="tick"><svg viewBox="0 0 12 12"><path d="M2.5 6.5 5 9l4.5-5.5"/></svg></span>
+              <span class="icon">
+                <svg viewBox="0 0 48 48" fill="currentColor" fill-opacity=".14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M8 26c0-9 8-15 18-14 9 1 14 8 12 16-2 8-10 11-19 9-7-2-11-5-11-11z"/>
+                  <path d="M19 23h.01M28 20h.01M27 30h.01M17 31h.01" fill="none" stroke-width="3.4"/>
+                </svg>
+              </span>
+              <span class="name">Potato</span>
+              <span class="hint" hidden>Not installed</span>
+            </span>
+          </label>
+
+          <label class="crop t-spinach">
+            <input type="radio" name="crop" value="spinach">
+            <span class="card">
+              <span class="tick"><svg viewBox="0 0 12 12"><path d="M2.5 6.5 5 9l4.5-5.5"/></svg></span>
+              <span class="icon">
+                <svg viewBox="0 0 48 48" fill="currentColor" fill-opacity=".14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M24 6c8 4 14 12 12 20-1 6-6 10-12 10s-11-4-12-10C10 18 16 10 24 6z"/>
+                  <path d="M24 36v7M24 13v21M24 22l-6-4M24 28l7-5" fill="none"/>
+                </svg>
+              </span>
+              <span class="name">Spinach</span>
+              <span class="hint" hidden>Not installed</span>
+            </span>
+          </label>
+
+        </div>
+      </fieldset>
+
+      <div class="lightbox">
+        <div class="stage" id="stage">
+          <label class="drop" id="drop" for="file" tabindex="0">
+            <svg viewBox="0 0 48 48" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M8 40C8 24 18 10 40 8c1 20-9 32-32 32z"/>
+              <path d="M8 40 28 20"/>
+            </svg>
+            <span class="big" id="drop-big">Drop a potato leaf photo here</span>
+            <span class="small">or <u>browse your files</u> · PNG, JPG or WebP, up to 10 MB</span>
+          </label>
+          <input type="file" id="file" accept="image/png,image/jpeg,image/webp,image/bmp">
+          <div class="preview">
+            <img id="preview" alt="Uploaded leaf preview">
+            <div class="scan"></div>
+          </div>
+        </div>
+        <div class="controls">
+          <span class="filename" id="filename">No photo selected</span>
+          <button class="ghost" id="clear" type="button" disabled>Remove</button>
+          <button class="primary" id="analyze" type="button" disabled>Analyze leaf</button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Leafcheck is a student project built on fine-tuned Vision Transformers. Results are indicative only. For treatment or spraying decisions, consult a qualified agronomist or your local agricultural extension service.</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var MAX_BYTES = 10 * 1024 * 1024;
+  var OK_TYPES = ["image/png", "image/jpeg", "image/webp", "image/bmp"];
+
+  var stage = document.getElementById("stage");
+  var drop = document.getElementById("drop");
+  var input = document.getElementById("file");
+  var preview = document.getElementById("preview");
+  var filename = document.getElementById("filename");
+  var analyzeBtn = document.getElementById("analyze");
+  var clearBtn = document.getElementById("clear");
+  var resultBody = document.getElementById("result-body");
+  var title = document.getElementById("title");
+  var lede = document.getElementById("lede");
+  var dropBig = document.getElementById("drop-big");
+  var radios = Array.prototype.slice.call(document.querySelectorAll('input[name="crop"]'));
+
+  var currentFile = null;
+  var crop = "potato";
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  function pretty(label) {
+    var t = String(label).replace(/^(potato|tomato|spinach)_*/i, "").replace(/_+/g, " ").trim();
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  }
+
+  function showMessage(html) { resultBody.innerHTML = html; }
+
+  function emptyState() {
+    showMessage(
+      '<p class="empty">Add a ' + crop + ' leaf photo and select Analyze leaf. The diagnosis and confidence scores will appear here.</p>' +
+      '<p class="tip">Tip: photograph a single leaf in daylight against a plain background.</p>'
+    );
+  }
+
+  function updateCopy() {
+    title.textContent = "Spot " + crop + " leaf disease early.";
+    lede.textContent = "Pick your crop, upload a photo of a " + crop + " leaf, and the vision transformer tells you which condition it most likely shows, with a confidence score for each possibility.";
+    dropBig.textContent = "Drop a " + crop + " leaf photo here";
+    preview.alt = "Uploaded " + crop + " leaf preview";
+  }
+
+  function onCropChange() {
+    var checked = radios.filter(function (r) { return r.checked; })[0];
+    crop = checked ? checked.value : crop;
+    updateCopy();
+    if (currentFile) {
+      showMessage('<p class="empty">Ready. Select Analyze leaf to check this photo as a ' + crop + ' leaf.</p>');
+    } else {
+      emptyState();
+    }
+  }
+
+  function setFile(file) {
+    if (!file) { return; }
+    if (OK_TYPES.indexOf(file.type) === -1) {
+      showMessage('<p class="error" role="alert">That file type isn’t supported. Choose a PNG, JPG or WebP image.</p>');
+      return;
+    }
+    if (file.size > MAX_BYTES) {
+      showMessage('<p class="error" role="alert">That image is larger than 10 MB. Choose a smaller file.</p>');
+      return;
+    }
+    currentFile = file;
+    if (preview.src) { URL.revokeObjectURL(preview.src); }
+    preview.src = URL.createObjectURL(file);
+    stage.classList.add("has-image");
+    filename.textContent = file.name;
+    analyzeBtn.disabled = false;
+    clearBtn.disabled = false;
+    showMessage('<p class="empty">Ready. Select Analyze leaf to check this photo as a ' + crop + ' leaf.</p>');
+  }
+
+  function reset() {
+    currentFile = null;
+    input.value = "";
+    stage.classList.remove("has-image", "analyzing");
+    preview.removeAttribute("src");
+    filename.textContent = "No photo selected";
+    analyzeBtn.disabled = true;
+    clearBtn.disabled = true;
+    emptyState();
+  }
+
+  function render(data) {
+    var entries = Object.keys(data.probabilities).map(function (k) { return [k, data.probabilities[k]]; });
+    entries.sort(function (a, b) { return b[1] - a[1]; });
+
+    var healthy = /healthy/i.test(data.prediction);
+    var bars = entries.map(function (e, i) {
+      return '<li class="' + (i === 0 ? "top" : "") + '">' +
+        '<div class="bar-head"><span>' + esc(pretty(e[0])) + '</span><span>' + e[1].toFixed(1) + '%</span></div>' +
+        '<div class="track"><div class="fill" data-w="' + e[1] + '"></div></div></li>';
+    }).join("");
+
+    var advice = data.confidence < 60
+      ? "Confidence is low. Try a clearer, well-lit photo of a single leaf."
+      : "This is a statistical estimate from one photo and can be wrong. Confirm with an agronomist before treating your crop.";
+
+    showMessage(
+      '<span class="pill ' + (healthy ? "ok" : "bad") + '">' + (healthy ? "Healthy leaf" : "Disease detected") + '</span>' +
+      '<p class="finding">' + esc(pretty(data.prediction)) + '</p>' +
+      '<p class="conf">Model confidence <strong>' + data.confidence.toFixed(1) + '%</strong></p>' +
+      '<ul class="bars ' + (healthy ? "" : "is-bad") + '">' + bars + '</ul>' +
+      '<p class="note">' + advice + '</p>'
+    );
+
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        var fills = resultBody.querySelectorAll(".fill");
+        for (var i = 0; i < fills.length; i++) { fills[i].style.width = fills[i].getAttribute("data-w") + "%"; }
+      });
+    });
+  }
+
+  function finish() {
+    stage.classList.remove("analyzing");
+    analyzeBtn.disabled = false;
+    clearBtn.disabled = false;
+    radios.forEach(function (r) { if (!r.getAttribute("data-off")) { r.disabled = false; } });
+    analyzeBtn.textContent = "Analyze leaf";
+  }
+
+  function analyze() {
+    if (!currentFile) { return; }
+    var fd = new FormData();
+    fd.append("image", currentFile);
+    fd.append("crop", crop);
+
+    stage.style.setProperty("--h", stage.clientHeight + "px");
+    stage.classList.add("analyzing");
+    analyzeBtn.disabled = true;
+    clearBtn.disabled = true;
+    radios.forEach(function (r) { r.disabled = true; });
+    analyzeBtn.textContent = "Analyzing…";
+    showMessage('<p class="empty">Examining the ' + crop + ' leaf…</p>');
+
+    var started = Date.now();
+
+    fetch("/predict", { method: "POST", body: fd })
+      .then(function (res) {
+        return res.json().then(function (body) {
+          if (!res.ok) { throw new Error(body.error || "The server returned an error."); }
+          return body;
+        });
+      })
+      .then(function (data) {
+        var wait = Math.max(0, 1900 - (Date.now() - started));
+        setTimeout(function () { finish(); render(data); }, wait);
+      })
+      .catch(function (err) {
+        finish();
+        var msg = err && err.message ? err.message : "Something went wrong.";
+        if (msg === "Failed to fetch") { msg = "Can’t reach the server. Check that app.py is still running."; }
+        showMessage('<p class="error" role="alert">' + esc(msg) + '</p>');
+      });
+  }
+
+  // Disable crops whose model isn't installed on the server
+  function checkAvailability() {
+    fetch("/health").then(function (r) { return r.json(); }).then(function (d) {
+      if (!d || !d.available) { return; }
+      radios.forEach(function (r) {
+        if (d.available.indexOf(r.value) === -1) {
+          r.disabled = true;
+          r.setAttribute("data-off", "1");
+          r.parentNode.querySelector(".hint").hidden = false;
+        }
+      });
+      var cur = radios.filter(function (r) { return r.checked; })[0];
+      if (cur && cur.disabled) {
+        var first = radios.filter(function (r) { return !r.disabled; })[0];
+        if (first) { first.checked = true; onCropChange(); }
+      }
+    }).catch(function () {});
+  }
+
+  radios.forEach(function (r) { r.addEventListener("change", onCropChange); });
+  input.addEventListener("change", function () { setFile(input.files[0]); });
+  analyzeBtn.addEventListener("click", analyze);
+  clearBtn.addEventListener("click", reset);
+
+  drop.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); }
+  });
+  ["dragenter", "dragover"].forEach(function (ev) {
+    stage.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add("over"); });
+  });
+  ["dragleave", "drop"].forEach(function (ev) {
+    stage.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove("over"); });
+  });
+  stage.addEventListener("drop", function (e) {
+    var f = e.dataTransfer && e.dataTransfer.files[0];
+    if (f) { setFile(f); }
+  });
+
+  onCropChange();
+  checkAvailability();
+})();
+</script>
+</body>
+</html>

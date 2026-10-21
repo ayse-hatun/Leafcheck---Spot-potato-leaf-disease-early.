@@ -1,0 +1,24 @@
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Model weights (>100MB file limit on GitHub, see README.md)
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.h5
+save_path/model.safetensors
+
+# OS and IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
