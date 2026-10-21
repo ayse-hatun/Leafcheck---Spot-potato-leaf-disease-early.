@@ -23,7 +23,8 @@ Farmers and students can drag in a leaf photo, watch the scan run, and see how c
 
 
 
-<img width="1587" height="828" alt="image" src="https://github.com/user-attachments/assets/6fcaf3f7-50f5-49b9-a69b-ed5a01aed277" />
+<img width="767" height="430" alt="image" src="https://github.com/user-attachments/assets/fdc87e63-316c-4084-b242-ed00ea509947" />
+
 
 -->
 
@@ -55,14 +56,15 @@ Leaf photo ──► Resize 224×224 + normalize ──► ViT-Base (fine-tuned)
 The full training and evaluation pipeline is in the notebook `early_brite_week8_class1_transformer.ipynb`. It covers data loading, training curves, accuracy, the classification report, the confusion matrix and a prediction confidence histogram.
 
 ## 🖥️ Web interface
-<img width="1546" height="855" alt="image" src="https://github.com/user-attachments/assets/4ba5df4d-612c-4fa2-a263-e1a0c1d06cf3" />
+<img width="575" height="419" alt="image" src="https://github.com/user-attachments/assets/8e469755-79e4-4f34-a603-db8907f8fbd4" />
+
 
 
 - Drag and drop, or browse, to upload a leaf photo with instant preview
 - Animated scan while the model analyzes the image
 - Top diagnosis in large type, plus confidence bars for every class
 - Input validation (file type and 10 MB size limit) with clear error messages
-- Responsive layout, keyboard friendly, respects reduced-motion settings
+- Responsive layout, keyboard-friendly, respects reduced-motion settings
 
 ## 📁 Project structure
 
