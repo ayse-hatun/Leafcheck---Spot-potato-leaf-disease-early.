@@ -51,7 +51,8 @@ Leaf photo ──► Resize 224×224 + normalize ──► ViT-Base (fine-tuned)
 The full training and evaluation pipeline is in the notebook `early_brite_week8_class1_transformer.ipynb`. It covers data loading, training curves, accuracy, the classification report, the confusion matrix and a prediction confidence histogram.
 
 ## 🖥️ Web interface
-<img width="1150" height="837" alt="image" src="https://github.com/user-attachments/assets/2972bc81-4811-43de-ba8c-4aa07d40825b" />
+<img width="794" height="414" alt="Screenshot 2026-10-21 150126" src="https://github.com/user-attachments/assets/e06f397e-0bfa-45ff-bec1-36755e12b5de" />
+
 
 - Drag and drop, or browse, to upload a leaf photo with instant preview
 - Animated scan while the model analyzes the image
